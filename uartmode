@@ -26,8 +26,8 @@ if [ "$1" == "1" ]; then
 			do
 				if [ -f /media/fat/linux/ppp_options ]; then
 					
-					localip=$(ifconfig 2>/dev/null | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p')
-					remoteip=$(ifconfig 2>/dev/null | sed -En 's/127.0.0.1//;s/.*inet (addr:)?(([0-9]*\.){2}[0-9]*).*/\2/p').254
+					localip=$(ifconfig 2>/dev/null | sed -En 's/127.0.0.1//;s/169.254.*//;s/.*inet (addr:)?(([0-9]*\.){3}[0-9]*).*/\2/p')
+					remoteip=$(ifconfig 2>/dev/null | sed -En 's/127.0.0.1//;s/169.254.*//;s/.*inet (addr:)?(([0-9]*\.){2}[0-9]*).*/\2/p').254
 
 					if [ -z $localip ]; then
 						echo cannot get local IP for PPP link.
