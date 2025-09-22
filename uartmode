@@ -2,14 +2,9 @@
 
 kill_all() {
 	rm -f /tmp/uartmode* /tmp/ML_BAUD
-
-	local procs=(midilink pppd agetty login mt32d fluidsynth mpg123)
-	local pids=$(pidof "${procs[@]}")
-	if [ -n "$pids" ]; then
-		kill $pids
-		sleep 0.1
-		kill -9 $pids 2>/dev/null
-	fi
+	fuser -k -TERM /dev/ttyS1
+	sleep 0.1
+	fuser -k -KILL /dev/ttyS1
 }
 
 conn_speed=115200
