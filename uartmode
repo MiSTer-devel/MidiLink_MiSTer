@@ -43,10 +43,9 @@ if [ "$1" == "1" ]; then
 					echo 1 > /proc/sys/net/ipv4/ip_forward
 					taskset 1 pppd $conn_speed file /tmp/ppp_options
 					status=$?
-					if [ $status -gt 1 ]; then
-						echo "pppd exited on error $status"
-						exit 0
-					fi
+					case $status in
+						1|2|3|4|6|7|9|137) echo "pppd exited with fatal error $status"; exit 0;;
+					esac
 				else
 					echo "skip pppd"
 					exit 0
