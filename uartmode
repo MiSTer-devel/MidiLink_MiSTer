@@ -2,9 +2,10 @@
 
 kill_all() {
 	rm -f /tmp/uartmode* /tmp/ML_BAUD
-	fuser -k -TERM /dev/ttyS1
-	sleep 0.1
-	fuser -k -KILL /dev/ttyS1
+	if fuser -k -TERM /dev/ttyS1 2>/dev/null; then
+		sleep 0.1
+		fuser -k -KILL /dev/ttyS1 2>/dev/null
+	fi
 }
 
 conn_speed=115200
