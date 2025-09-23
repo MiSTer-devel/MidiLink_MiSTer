@@ -1,15 +1,11 @@
 #!/bin/bash
 
 kill_all() {
-	rm -f /tmp/uartmode*
-	rm -f /tmp/ML_BAUD
-	killall midilink
-	killall pppd
-	killall agetty
-	killall login
-	killall mt32d
-	killall fluidsynth
-	killall mpg123
+	rm -f /tmp/uartmode* /tmp/ML_BAUD
+	if fuser -k -TERM /dev/ttyS1 2>/dev/null; then
+		sleep 0.1
+		fuser -k -KILL /dev/ttyS1 2>/dev/null
+	fi
 }
 
 conn_speed=115200
