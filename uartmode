@@ -6,6 +6,9 @@ kill_all() {
 		sleep 0.1
 		fuser -k -KILL /dev/ttyS1 2>/dev/null
 	fi
+
+	# TODO: Find a smarter way to kill only the pids spawned by midilink
+	killall -KILL fluidsynth mpg123 mt32d 2>/dev/null
 }
 
 conn_speed=115200
