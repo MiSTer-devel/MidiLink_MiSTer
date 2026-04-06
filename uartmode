@@ -125,22 +125,24 @@ elif [ "$1" == "5" ]; then
 			done 
 		) &
 	fi
-elif [ "$1" == "6" ] && [ -f /media/fat/snid ] ; then
+elif [ "$1" == "6" ]; then
 	if [ ! -f /tmp/uartmode6 ]; then
 		kill_all
 		echo "1" >/tmp/uartmode6
-		(
-			while true
-			do
-				RUST_LOG=info taskset 1 /media/fat/snid > /tmp/snid.log 2>&1
-				wait $!
+		if [ -f /media/fat/snid ]; then
+			(
+				while true
+				do
+					RUST_LOG=info taskset 1 /media/fat/snid > /tmp/snid.log 2>&1
+					wait $!
 
-				[ ! -f /tmp/uartmode6 ] && exit 0
+					[ ! -f /tmp/uartmode6 ] && exit 0
 
-				echo respawn snid
-				sleep 1
-			done 
-		) &
+					echo respawn snid
+					sleep 1
+				done 
+			) &
+		fi
 	fi
 else
 	if [ -f /tmp/uartmode* ]; then
