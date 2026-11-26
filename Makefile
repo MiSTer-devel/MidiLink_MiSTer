@@ -1,5 +1,5 @@
-CC=arm-linux-gnueabihf-gcc 
-STRIP=arm-linux-gnueabihf-strip 
+CC=arm-none-linux-gnueabihf-gcc 
+STRIP=arm-none-linux-gnueabihf-strip 
 CCFLAGS=-Ialsa/include -Lalsa/lib -Ofast -mcpu=cortex-a9 -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard -ftree-vectorize -funsafe-math-optimizations
 LDFLAGS=-lasound -lm -pthread 
 all : 
