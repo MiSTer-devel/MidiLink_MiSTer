@@ -65,6 +65,64 @@ int main(int argc, char *argv[])
         bShowInfo = FALSE;
     }
 
+    result = misc_check_args_option(argc, argv, "SYSEX");
+    if(result && (result + 1 < argc))
+    {
+        unsigned char packet[33];
+        int packetLen = 0;
+
+        for (int i = result + 1; i < argc; i++)
+        {
+            char * endPtr;
+            long value = strtol(argv[i], &endPtr, 16);
+
+            if (*argv[i] == 0x00 || *endPtr != 0x00 ||
+                value < 0 || value > 255)
+            {
+                printf("ERROR: invalid SysEx byte --> '%s'\n", argv[i]);
+                return -20;
+            }
+
+            if (packetLen >= 32)
+            {
+                printf("ERROR: SysEx command is too long\n");
+                return -21;
+            }
+
+            packet[++packetLen] = (unsigned char)value;
+        }
+
+        if (packetLen < 2 ||
+            packet[1] != 0xF0 ||
+            packet[packetLen] != 0xF7)
+        {
+            printf("ERROR: SysEx must start with F0 and end with F7\n");
+            return -22;
+        }
+
+        packet[0] = (unsigned char)packetLen;
+
+        int fdControl = open(controlFIFO, O_WRONLY | O_NONBLOCK);
+        if (fdControl < 0)
+        {
+            printf("ERROR: cannot open %s: %s\n",
+                   controlFIFO, strerror(errno));
+            return -23;
+        }
+
+        ssize_t written = write(fdControl, packet, packetLen + 1);
+        close(fdControl);
+
+        if (written != packetLen + 1)
+        {
+            printf("ERROR: incomplete control write: %d/%d\n",
+                   (int)written, packetLen + 1);
+            return -24;
+        }
+
+        bShowInfo = FALSE;
+    }
+
     result = misc_check_args_option(argc, argv, "FSSFONT");
     if(result && (result + 1 < argc))
     {
@@ -122,6 +180,10 @@ int main(int argc, char *argv[])
         }
     }
     if (bShowInfo)
-        printf("%s\nUsage:\n - #mlinkutil BAUD [rate]\n - #mlinkutil FSSFONT [fileaname]\n",helloStr);
+        printf("%s\nUsage:\n"
+               " - #mlinkutil BAUD [rate]\n"
+               " - #mlinkutil FSSFONT [filename]\n"
+               " - #mlinkutil SYSEX F0 ... F7\n",
+               helloStr);
     return 0;
 }

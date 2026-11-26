@@ -24,6 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include <signal.h>
 #include <ctype.h>
 #include <sys/time.h>
+#include <sys/stat.h>
 #include "serial.h"
 #include "serial2.h"
 #include "misc.h"
@@ -78,6 +79,8 @@ static pthread_t        midiINInThread;
 static pthread_t        socketInThread;
 static pthread_t        socketLstThread;
 static pthread_t        serialInThread;
+static pthread_t        controlThread;
+static pthread_mutex_t  midiWriteLock = PTHREAD_MUTEX_INITIALIZER;
 
 ///////////////////////////////////////////////////////////////////////////////////////
 //
@@ -205,6 +208,8 @@ void write_alsa_packet(char * buf, int bufLen)
 void write_midi_packet(char * buf, int bufLen)
 {
     static int SYSEX = FALSE;
+
+    pthread_mutex_lock(&midiWriteLock);
     if (DELAYSYSEX && (SYSEX || memchr(buf, 0xF0, bufLen))) // This is for MT-32 Rev0 -
     {   // spoon-feed the SYSEX data and delay after
         misc_print(2, "MIDI OUT [%02d] -->", bufLen);
@@ -241,6 +246,8 @@ void write_midi_packet(char * buf, int bufLen)
         write(fdMidi, buf, bufLen);
         show_debug_buf("MIDI OUT ", buf, bufLen);
     }
+
+    pthread_mutex_unlock(&midiWriteLock);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -302,6 +309,91 @@ void * udpsock_thread_function_ext (void * x)
             write_alsa_packet(buf, rdLen);
         }
     } while (TRUE);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////
+//
+// void * control_thread_function(void * x)
+// Receives length-prefixed MIDI packets from /tmp/ML_CONTROL.
+//
+void * control_thread_function(void * x)
+{
+    unsigned char packet[32];
+
+    unlink(controlFIFO);
+
+    if (mkfifo(controlFIFO, 0600) < 0 && errno != EEXIST)
+    {
+        misc_print(0, "ERROR: cannot create %s: %s\n",
+                   controlFIFO, strerror(errno));
+        return NULL;
+    }
+
+    int fdControl = open(controlFIFO, O_RDWR);
+    if (fdControl < 0)
+    {
+        misc_print(0, "ERROR: cannot open %s: %s\n",
+                   controlFIFO, strerror(errno));
+        return NULL;
+    }
+
+    misc_print(0, "MIDI control FIFO ready: %s\n", controlFIFO);
+
+    while (TRUE)
+    {
+        unsigned char length = 0;
+        ssize_t rdLen = read(fdControl, &length, 1);
+
+        if (rdLen != 1)
+            continue;
+
+        if (length == 0 || length > 32)
+        {
+            misc_print(0, "ERROR: invalid MIDI control length: %u\n",
+                       length);
+            continue;
+        }
+
+        size_t received = 0;
+        size_t expected = (size_t)length;
+
+        while (received < expected)
+        {
+            size_t remaining = expected - received;
+
+            if (remaining > sizeof(packet) - received)
+            {
+                misc_print(0,
+                           "ERROR: MIDI control packet exceeds buffer\n");
+                break;
+            }
+
+            rdLen = read(fdControl,
+                         packet + received,
+                         remaining);
+
+            if (rdLen <= 0)
+                break;
+
+            received += (size_t)rdLen;
+        }
+
+        if (received == expected)
+        {
+            write_midi_packet((char *)packet, length);
+            show_debug_buf("CTRL OUT ", (char *)packet, length);
+        }
+        else
+        {
+            misc_print(0,
+                       "ERROR: incomplete MIDI control packet: %u/%u\n",
+                       (unsigned int)received,
+                       (unsigned int)length);
+        }
+    }
+
+    close(fdControl);
+    return NULL;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////
@@ -936,6 +1028,19 @@ int main(int argc, char *argv[])
             write_midi_packet(buf, misc_MT32_LCD(MT32LCDMsg, buf));
         }
         //This main loop handles USB MIDI
+        status = pthread_create(&controlThread,
+                                NULL,
+                                control_thread_function,
+                                NULL);
+        if (status != 0)
+        {
+            misc_print(0,
+                       "ERROR: unable to create MIDI control thread.\n");
+            close_fd();
+            return -24;
+        }
+
+        misc_print(0, "MIDI control thread created.\n");
         misc_print(0, "Starting --> USB MIDI loop :)\n");
         do
         {

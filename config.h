@@ -23,6 +23,7 @@ static char          * midiDevice       = "/dev/midi1";
 static char          * serialDeviceUSB  = "/dev/ttyUSB0";
 static char          * tmpSoundfont     = "/tmp/ML_SOUNDFONT";
 static char          * tmpBAUD          = "/tmp/ML_BAUD";
+static char          * controlFIFO      = "/tmp/ML_CONTROL";
 
 char all_notes_off[] = 
 {
